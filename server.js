@@ -15,9 +15,7 @@ app.use(cors({
     "http://127.0.0.1:5500",
     "http://127.0.0.1:5501",
     "https://robinhood-alliance.web.app",
-    "https://onbank-beta.vercel.app",
-    "https://rat-production-1899.up.railway.app",
-    "https://robinhood-alliance-production.up.railway.app",
+    "https://rat-production-7ec5.up.railway.app",
     "*"
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
