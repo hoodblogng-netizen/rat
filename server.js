@@ -9,7 +9,7 @@ const pool = require('./db');
 const multer = require('multer');
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB per file
+  limits: { fileSize: 25 * 1024 * 1024 } // 25MB per file
 });
 
 const app = express();
@@ -28,8 +28,8 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '30mb' }));
+app.use(express.urlencoded({ extended: true, limit: '30mb' }));
 
 const PORT = process.env.PORT || 5000;
 
