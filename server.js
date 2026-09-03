@@ -35,18 +35,39 @@ const PORT = process.env.PORT || 5000;
 
 // ---------- USD RATES (for real bank-style income/expenses) ----------
 const FALLBACK_USD = {
-  BTC: 95000, ETH: 3500, USDT: 1, TRON: 0.25, TRX: 0.25,
+  QFS: 0.00001623, BTC: 95000, ETH: 3500, USDT: 1, TRON: 0.25, TRX: 0.25,
   BNB: 650, XRP: 2.2, XLM: 0.4, USD: 1
 };
 
 async function getUsdRates() {
   try {
-    const res = await fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether,tron,binancecoin,ripple,stellar&vs_currencies=usd'
-    );
-    if (!res.ok) throw new Error('rate fail');
-    const p = await res.json();
+    // Parallel fetch: CoinGecko for majors + GeckoTerminal for QFS
+    const [cgRes, gtRes] = await Promise.all([
+      fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether,tron,binancecoin,ripple,stellar&vs_currencies=usd'
+      ),
+      fetch(
+        'https://api.geckoterminal.com/api/v2/simple/networks/solana/token_price/5rpEoZcrd5oJvEWcqHfzD8k4axJXhNW9fZ5putdsmoon'
+      )
+    ]);
+
+    if (!cgRes.ok) throw new Error('CoinGecko rate fail');
+    const p = await cgRes.json();
+
+    // Parse GeckoTerminal response
+    let qfsPrice = FALLBACK_USD.QFS;
+    if (gtRes.ok) {
+      const gt = await gtRes.json();
+      // Response shape: { data: { attributes: { token_prices: { "5rpEo...": "0.00001613" } } } }
+      const priceStr =
+        gt?.data?.attributes?.token_prices?.[
+          '5rpEoZcrd5oJvEWcqHfzD8k4axJXhNW9fZ5putdsmoon'
+        ];
+      if (priceStr) qfsPrice = parseFloat(priceStr);
+    }
+
     return {
+      QFS: qfsPrice,
       BTC: p.bitcoin?.usd || FALLBACK_USD.BTC,
       ETH: p.ethereum?.usd || FALLBACK_USD.ETH,
       USDT: p.tether?.usd || 1,
@@ -61,6 +82,7 @@ async function getUsdRates() {
     return { ...FALLBACK_USD };
   }
 }
+
 
 function toUsd(amount, currency, rates) {
   const c = (currency || 'USD').toUpperCase();
@@ -117,7 +139,7 @@ app.post('/api/register', async (req, res) => {
     );
     const newUser = userResult.rows[0];
 
-    const currencies = ['BTC', 'ETH', 'USDT', 'TRON', 'BNB', 'XRP', 'XLM'];
+    const currencies = ['QFS', 'BTC', 'ETH', 'USDT', 'TRON', 'BNB', 'XRP', 'XLM'];
     for (const curr of currencies) {
       await client.query(
         `INSERT INTO wallets (user_id, currency, balance) VALUES ($1, $2, 0)`,
@@ -1021,7 +1043,7 @@ app.post('/api/admin/users', authenticate, isAdmin, async (req, res) => {
       [full_name, email, phone || null, country || null, passwordHash, role || 'user']
     );
     const newUser = result.rows[0];
-    const currencies = ['BTC', 'ETH', 'USDT', 'TRON', 'BNB', 'XRP', 'XLM'];
+    const currencies = ['QFS', 'BTC', 'ETH', 'USDT', 'TRON', 'BNB', 'XRP', 'XLM'];
     for (const curr of currencies) {
       await client.query(
         `INSERT INTO wallets (user_id, currency, balance) VALUES ($1, $2, 0)`,
